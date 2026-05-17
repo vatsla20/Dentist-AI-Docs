@@ -86,7 +86,7 @@ flowchart TD
     
     AH --> AI[Booking Confirmed!]
     AI --> AJ[Send Maps Link]
-    AJ --> AK[Reminder in 24h]
+    AJ --> AK[Reminder in 24hrs]
     AK --> AL[Log to Database]
     AL --> AM[Send SMS Backup]
     AM --> End3([Complete ])
@@ -336,7 +336,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([9 AM: Cron Triggers]) --> A[Query Database]
-    A --> B[Find: startTime = +24h]
+    A --> B[Find: startTime = +24hrs]
     B --> C{Found<br/>Any?}
     
     C -->|No| D[Log: None to send]
@@ -672,7 +672,7 @@ flowchart LR
     D --> E[Mark Status]
     E --> F[Update Status]
     B --> G[SMS Reminder<br/>Cron]
-    G --> H[Send 24h Before]
+    G --> H[Send 24hrs Before]
     H --> I[Patient: CANCEL]
     I --> F
     F --> J[Doctor WhatsApp]
