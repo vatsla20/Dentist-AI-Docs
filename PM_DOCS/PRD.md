@@ -1,9 +1,12 @@
 # Product Requirements Document (PRD)
 ## AI-Powered Appointment Booking System for Indian Dental Clinics
 
+---
 
+**Product Manager:** [Your Name]  
 **Date:** May 17, 2026  
-**Version:** 1.0
+**Status:** ✅ Approved for Development  
+**Version:** 1.0  
 **Target Launch:** Q3 2026 (Beta: July, Public: September)
 
 ---
@@ -66,16 +69,16 @@ Mobile-first, WhatsApp-integrated booking system with:
 
 ## Out of Scope (V1)
 
--Multi-clinic management  
--Electronic medical records (EMR)  
--Lab integrations  
--Inventory management  
--Google Calendar sync  
--Patient portal/login  
--Insurance claim processing  
--Regional languages beyond Hindi  
--Desktop/web version for staff  
--Video consultations
+❌ Multi-clinic management  
+❌ Electronic medical records (EMR)  
+❌ Lab integrations  
+❌ Inventory management  
+❌ Google Calendar sync  
+❌ Patient portal/login  
+❌ Insurance claim processing  
+❌ Regional languages beyond Hindi  
+❌ Desktop/web version for staff  
+❌ Video consultations
 
 **Rationale:** Focus on 5 core features that solve the critical problem. Additional features based on usage data.
 
@@ -83,28 +86,77 @@ Mobile-first, WhatsApp-integrated booking system with:
 
 ## Product Architecture
 
+```mermaid
+flowchart TB
+    subgraph Patient["Patient Interface"]
+        WA[WhatsApp Bot<br/>24/7 Booking]
+        VC[Voice AI<br/>Hindi/English]
+    end
+    
+    subgraph Backend["Backend Services"]
+        API[API Server<br/>Node.js + Express]
+        DB[(PostgreSQL<br/>Database)]
+        CACHE[(Redis<br/>Cache)]
+        QUEUE[BullMQ<br/>Job Queue]
+    end
+    
+    subgraph Clinic["Clinic Interface"]
+        MOBILE[Staff Mobile App<br/>React Native]
+        DASH[Doctor Dashboard<br/>WhatsApp Reports]
+    end
+    
+    subgraph External["External Services"]
+        TWILIO[Twilio<br/>WhatsApp API]
+        VAPI[Vapi.ai<br/>Voice AI]
+        RAZOR[Razorpay<br/>Payments]
+        SMS[MSG91<br/>SMS Gateway]
+    end
+    
+    WA --> TWILIO
+    VC --> VAPI
+    TWILIO --> API
+    VAPI --> API
+    MOBILE --> API
+    API --> DB
+    API --> CACHE
+    API --> QUEUE
+    API --> RAZOR
+    API --> SMS
+    QUEUE --> DASH
+    
+    style Patient fill:#e3f2fd
+    style Clinic fill:#f1f8e9
+    style Backend fill:#fff3e0
+    style External fill:#fce4ec
 ```
-PATIENT SIDE                    CLINIC SIDE
-┌─────────────┐                ┌──────────────┐
-│  WhatsApp   │                │   Staff      │
-│  Bot (24/7) │──┐             │   Mobile/    |
-|             |                |  Application │
-└─────────────┘  │             └──────────────┘
-                 │                      │
-┌─────────────┐  │                      │
-│ Voice Call  │──┤                      │
-│ AI          │  │                      │
-└─────────────┘  │                      │
-                 ▼                      ▼
-          ┌──────────────────────────────┐
-          │     Backend Server           │
-          │  (Node.js + PostgreSQL)      │
-          └──────────────────────────────┘
-                 │              │
-          ┌──────┴──────┐      │
-          ▼             ▼      ▼
-    WhatsApp API   Voice AI   Payment
-    (Twilio)       (Vapi.ai)  (Razorpay)
+
+---
+
+## System Context Diagram
+
+```mermaid
+C4Context
+    title System Context - Dental Clinic Booking System
+    
+    Person(patient, "Patient", "Books appointments<br/>via WhatsApp/Voice")
+    Person(staff, "Clinic Staff", "Manages daily<br/>schedule & walk-ins")
+    Person(doctor, "Clinic Owner", "Views analytics<br/>& reports")
+    
+    System(booking, "Appointment<br/>Booking System", "Handles bookings,<br/>reminders, payments")
+    
+    System_Ext(whatsapp, "WhatsApp<br/>Business API", "Message delivery")
+    System_Ext(voice, "Voice AI", "Phone bookings")
+    System_Ext(payment, "Payment<br/>Gateway", "UPI payments")
+    System_Ext(sms, "SMS Gateway", "Fallback notifications")
+    
+    Rel(patient, booking, "Books via WhatsApp/Call")
+    Rel(staff, booking, "Uses mobile app")
+    Rel(doctor, booking, "Receives reports")
+    
+    Rel(booking, whatsapp, "Sends/receives messages")
+    Rel(booking, voice, "Handles calls")
+    Rel(booking, payment, "Processes payments")
+    Rel(booking, sms, "Sends SMS")
 ```
 
 ---
@@ -113,7 +165,53 @@ PATIENT SIDE                    CLINIC SIDE
 
 ### 1. Patient Booking (WhatsApp Bot)
 
-#### 1.1 Booking Initiation
+#### 1.1 Booking Flow
+
+```mermaid
+flowchart TD
+    Start([Patient Sends<br/>WhatsApp]) --> Intent{Detect<br/>Intent}
+    Intent -->|Booking| Greet[Bot: Greeting +<br/>Quick Actions]
+    Intent -->|Other| Help[Bot: Help Menu]
+    
+    Greet --> Name[Ask: Name]
+    Name --> Phone[Ask: Phone]
+    Phone --> Verify{First Time<br/>Patient?}
+    
+    Verify -->|Yes| OTP[Send OTP]
+    OTP --> ValidOTP{OTP Valid?}
+    ValidOTP -->|No| OTP
+    ValidOTP -->|Yes| Doctor[Select Doctor]
+    
+    Verify -->|No| Doctor
+    
+    Doctor --> Date[Select Date]
+    Date --> CheckSlots{Slots<br/>Available?}
+    
+    CheckSlots -->|No| AltDate[Suggest Alternative]
+    AltDate --> Date
+    
+    CheckSlots -->|Yes| ShowSlots[Show Time Slots]
+    ShowSlots --> SelectSlot[Patient Selects]
+    SelectSlot --> Payment{Advance<br/>Payment?}
+    
+    Payment -->|Required| PayLink[Send UPI Link]
+    PayLink --> PayStatus{Payment<br/>Success?}
+    PayStatus -->|No| PayRetry[Retry or<br/>Pay at Clinic]
+    PayRetry --> Payment
+    PayStatus -->|Yes| Confirm[Create Booking]
+    
+    Payment -->|Not Required| Confirm
+    
+    Confirm --> SendConf[Send Confirmation<br/>+ Calendar Invite]
+    SendConf --> End([Booking Complete])
+    
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style Confirm fill:#fff4e1
+    style PayLink fill:#e3f2fd
+```
+
+#### Booking Initiation
 **User Story:** Patient messages clinic → bot responds in <5 seconds with options
 
 **Acceptance Criteria:**
@@ -129,7 +227,7 @@ PATIENT SIDE                    CLINIC SIDE
 
 ---
 
-#### 1.2 Slot Selection
+#### Slot Selection
 **User Story:** Patient sees available slots → selects time → instant confirmation
 
 **Acceptance Criteria:**
@@ -152,24 +250,36 @@ PATIENT SIDE                    CLINIC SIDE
 
 ---
 
-#### 1.3 Patient Details & Confirmation
-**User Story:** Patient provides name/phone → sees booking summary
-
-**Acceptance Criteria:**
-- First-time: Asks name + phone (auto-filled from WhatsApp)
-- Returning: Auto-fills details, confirms
-- Optional: Reason [Checkup] [Cleaning] [Pain] [Other]
-- Shows summary: Date, Time, Doctor, Location (Google Maps link)
-
-**Technical:**
-- Patient profile: Phone as unique ID
-- Session management: Remember details within conversation
-- Google Maps API for location link
-
----
-
-#### 1.4 UPI Advance Payment
+#### UPI Advance Payment
 **User Story:** Patient pays ₹200 advance via UPI to secure slot
+
+```mermaid
+sequenceDiagram
+    participant P as Patient
+    participant B as Bot
+    participant API as Backend
+    participant R as Razorpay
+    participant DB as Database
+    
+    P->>B: Selects time slot
+    B->>API: Check availability
+    API->>DB: Lock slot (optimistic)
+    DB-->>API: Slot locked
+    API-->>B: Slot confirmed
+    
+    B->>R: Generate payment link
+    R-->>B: UPI link + QR
+    B->>P: Send payment link
+    
+    P->>R: Completes payment
+    R->>API: Webhook: Payment success
+    API->>DB: Create appointment
+    DB-->>API: Booking confirmed
+    
+    API->>B: Trigger confirmation
+    B->>P: Send confirmation + calendar
+    B->>P: Send SMS backup
+```
 
 **Acceptance Criteria:**
 - Payment link opens PhonePe/Google Pay directly (UPI intent)
@@ -191,10 +301,112 @@ PATIENT SIDE                    CLINIC SIDE
 
 ---
 
-#### 1.5 Reminders & Follow-ups
-**User Story:** Patient receives automated reminders to prevent no-shows
+### 2. Staff Mobile App
+
+#### 2.1 App Information Architecture
+
+```mermaid
+flowchart LR
+    Home[Home Screen<br/>Today's Schedule]
+    
+    Home --> Today[Today's Appointments]
+    Home --> AddWalk[Add Walk-in]
+    Home --> Search[Search Patient]
+    Home --> Settings[Settings]
+    
+    Today --> ApptDetail[Appointment Details]
+    ApptDetail --> MarkStatus[Mark Status:<br/>Completed/No-show]
+    ApptDetail --> Collect[Collect Payment]
+    
+    AddWalk --> WalkForm[Quick Form:<br/>Name, Phone, Time]
+    WalkForm --> Conflict{Check<br/>Conflicts}
+    Conflict -->|No| Create[Create Walk-in]
+    Conflict -->|Yes| Alert[Show Alert]
+    
+    Search --> PatientList[Patient List]
+    PatientList --> PatientProfile[Patient Profile:<br/>History, Notes]
+    
+    Settings --> Hours[Operating Hours]
+    Settings --> Staff[Staff Management]
+    Settings --> Payments[Payment Settings]
+    
+    style Home fill:#e3f2fd
+    style ApptDetail fill:#fff4e1
+    style Create fill:#e1f5e9
+```
+
+#### 2.2 Daily Schedule View
+**User Story:** Staff views today's appointments on home screen
 
 **Acceptance Criteria:**
+- Default: Today's appointments (chronological list)
+- Each card shows:
+  - Time, Patient name, Phone (click-to-call)
+  - Status: [Confirmed] [Pending] [Walk-in] [Completed] [No-show]
+  - Payment: ₹200 paid, ₹800 pending
+- Color-coded: Green (confirmed), Yellow (pending), Blue (walk-in), Gray (completed), Red (no-show)
+- Pull-to-refresh for updates
+- Real-time push notifications for new bookings
+
+**Technical:**
+- React Native (Android first)
+- API: `GET /appointments?date=today&clinicId=X`
+- WebSocket for real-time updates
+- Offline cache + sync
+
+**Performance:**
+- Load time <2 seconds
+- Works offline (cached data)
+- Touch targets ≥44px
+
+---
+
+### 3. Automated Reminder System
+
+#### 3.1 Reminder Flow
+
+```mermaid
+flowchart TB
+    Cron[Cron Job<br/>Runs Daily 9 AM] --> Query[Query DB:<br/>Appointments in 24h]
+    
+    Query --> Check{Appointments<br/>Found?}
+    Check -->|No| LogNone[Log: None to send]
+    Check -->|Yes| Loop[For Each Appointment]
+    
+    Loop --> OptIn{Patient<br/>Opted In?}
+    OptIn -->|No| Skip[Skip Patient]
+    OptIn -->|Yes| GenMsg[Generate Message]
+    
+    GenMsg --> SendWA[Send via WhatsApp]
+    SendWA --> WAStatus{Delivery<br/>Success?}
+    
+    WAStatus -->|Yes| LogSuccess[Log: Delivered]
+    WAStatus -->|No| Fallback[Send via SMS]
+    Fallback --> LogFallback[Log: SMS Fallback]
+    
+    LogSuccess --> WaitReply{Patient<br/>Replies?}
+    LogFallback --> WaitReply
+    
+    WaitReply -->|CANCEL| CancelAppt[Cancel Appointment]
+    WaitReply -->|CONFIRM| ConfirmAppt[Mark Confirmed]
+    WaitReply -->|No Reply| NoAction[No Action]
+    
+    CancelAppt --> Notify[Notify Clinic Staff]
+    ConfirmAppt --> Update[Update Status]
+    
+    Skip --> Loop
+    Notify --> End([Complete])
+    Update --> End
+    NoAction --> End
+    LogNone --> End
+    
+    style Cron fill:#e1f5e1
+    style End fill:#e1f5e1
+    style CancelAppt fill:#ffe1e1
+    style Notify fill:#fff4e1
+```
+
+**Reminder Types:**
 
 **Immediate confirmation:**
 - WhatsApp message + Google Calendar .ics + SMS fallback
@@ -229,131 +441,46 @@ Rate your experience: [5★] [4★] [3★] [2★] [1★]
 
 ---
 
-### 2. Staff Mobile App
+### 4. Doctor Dashboard
 
-#### 2.1 Daily Schedule View
-**User Story:** Staff views today's appointments on home screen
+#### 4.1 Analytics & Reporting
 
-**Acceptance Criteria:**
-- Default: Today's appointments (chronological list)
-- Each card shows:
-  - Time, Patient name, Phone (click-to-call)
-  - Status: [Confirmed] [Pending] [Walk-in] [Completed] [No-show]
-  - Payment: ₹200 paid, ₹800 pending
-- Color-coded: Green (confirmed), Yellow (pending), Blue (walk-in), Gray (completed), Red (no-show)
-- Pull-to-refresh for updates
-- Real-time push notifications for new bookings
-
-**Technical:**
-- React Native (Android first)
-- API: `GET /appointments?date=today&clinicId=X`
-- WebSocket for real-time updates
-- Offline cache + sync
-
-**Performance:**
-- Load time <2 seconds
-- Works offline (cached data)
-- Touch targets ≥44px
-
----
-
-#### 2.2 Walk-In Management
-**User Story:** Staff adds walk-in patients in <30 seconds
-
-**Acceptance Criteria:**
-- Big [+ Add Walk-In] button on home screen
-- Form: Name (required), Phone (required), Time (auto-filled, editable), Reason (optional)
-- Submit → added to today's schedule
-- No payment required (collected in person)
-- Auto-links to existing patient if phone number matches
-
-**Technical:**
-- API: `POST /appointments/walkin`
-- Phone validation + duplicate check
-- Conflict detection (warns if overlaps)
-
-**Business Rules:**
-- Walk-ins marked with "Walk-in" source tag
-- Can "squeeze in" even if slots full (15-min buffer)
-
----
-
-#### 2.3 Appointment Status Management
-**User Story:** Staff marks completed/no-show to keep schedule accurate
-
-**Acceptance Criteria:**
-- Swipe left → [✓ Completed] [✗ No-Show] [Reschedule]
-- **Completed:** Card grayed out, triggers post-appointment WhatsApp (2 hrs later)
-- **No-show:** Marked red, doctor gets end-of-day summary
-- **Reschedule:** Opens booking flow, patient gets WhatsApp notification
-- Undo within 5 minutes (accidental marks)
-
-**Technical:**
-- API: `PATCH /appointments/:id/status`
-- Push notification to doctor (no-show summary)
-
----
-
-#### 2.4 Payment Collection
-**User Story:** Staff tracks and collects balance payments
-
-**Acceptance Criteria:**
-- Card shows: ₹200 paid (advance) ✓, ₹800 pending, [Collect Balance]
-- Options: [Cash] [UPI] [Partial]
-- **Cash:** Marks "Paid - Cash"
-- **UPI:** Sends payment link to patient WhatsApp
-- **Partial:** Enter amount, track remaining balance
-- End-of-day summary: "Total collected: ₹18,500"
-
-**Technical:**
-- API: `POST /payments`
-- Razorpay UPI link generation
-
----
-
-### 3. AI Voice Calling (Optional)
-
-#### 3.1 Voice Booking
-**User Story:** Patient calls clinic → AI books appointment in Hindi/English
-
-**Acceptance Criteria:**
-- AI answers within 2 rings
-- Greeting: "Namaste, aap Smile Dental Clinic ko call kar rahe hain. Main aapki appointment book kar sakti hoon. Aapka naam kya hai?"
-- Supports: Hindi, English, Hinglish (code-switching)
-- Collects: Name, phone, preferred date/time
-- Real-time availability check
-- Confirms booking + sends WhatsApp confirmation
-- Call duration: <2 minutes
-- If AI fails (>2 attempts) → transfer to staff
-
-**Technical:**
-- Vapi.ai API integration
-- GPT-4 with Hindi fine-tuning
-- Function calling: `check_availability()`, `book_appointment()`
-- Call recording storage (quality assurance)
-
-**Conversation Flow:**
-```
-AI: "Namaste, Smile Dental Clinic. Aapka naam?"
-Patient: "Amit Verma"
-AI: "Amit ji, appointment kab chahiye?"
-Patient: "Is week mein, evening"
-AI: "Ek minute... Wednesday 6pm available. Chalega?"
-Patient: "Haan"
-AI: "Perfect! Wednesday 6pm booked. WhatsApp confirmation aayega. Thank you!"
+```mermaid
+flowchart LR
+    subgraph Daily["Daily Reports"]
+        Morning[Morning Brief<br/>8 AM]
+        Evening[Evening Summary<br/>9:30 PM]
+    end
+    
+    subgraph Weekly["Weekly Reports"]
+        Monday[Every Monday<br/>9 AM]
+    end
+    
+    subgraph Monthly["Monthly Reports"]
+        FirstDay[1st of Month<br/>9 AM]
+    end
+    
+    subgraph Metrics["Key Metrics"]
+        NoShow[No-show Rate]
+        Revenue[Revenue Collected]
+        Patients[Patient Count]
+        Rating[Average Rating]
+    end
+    
+    Morning --> Metrics
+    Evening --> Metrics
+    Monday --> Metrics
+    FirstDay --> Metrics
+    
+    Metrics --> Dashboard[Web Dashboard<br/>Charts & Graphs]
+    Metrics --> WA[WhatsApp Summary]
+    Metrics --> PDF[PDF Export]
+    
+    style Dashboard fill:#e3f2fd
+    style WA fill:#e1f5e9
 ```
 
-**Edge Cases:**
-- Regional language only → "I understand Hindi and English only. Connecting to staff..."
-- Medical question → "I only help with appointments. Please visit clinic for medical questions."
-- Call drops → WhatsApp: "Call disconnected. Continue booking: [Link]"
-
----
-
-### 4. Doctor Dashboard (WhatsApp)
-
-#### 4.1 Daily Summary
-**User Story:** Doctor receives morning summary and evening report via WhatsApp
+**Daily Summary via WhatsApp:**
 
 **Morning (8:00 AM):**
 ```
@@ -386,110 +513,98 @@ Revenue: ₹22,400
 [Detailed Report]
 ```
 
-**Technical:**
-- Cron job (scheduled WhatsApp messages)
-- API: `GET /analytics/daily-summary`
-- WhatsApp Business API templates
-
 ---
 
-#### 4.2 Weekly/Monthly Reports
-**User Story:** Doctor tracks business performance and system ROI
+### 5. Data Model
 
-**Weekly (Every Monday 9am):**
+#### 5.1 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    CLINIC ||--o{ DOCTOR : has
+    CLINIC ||--o{ STAFF : employs
+    CLINIC ||--o{ APPOINTMENT : manages
+    
+    DOCTOR ||--o{ APPOINTMENT : sees
+    DOCTOR ||--o{ AVAILABILITY : sets
+    
+    PATIENT ||--o{ APPOINTMENT : books
+    PATIENT ||--o{ PAYMENT : makes
+    
+    APPOINTMENT ||--|| PAYMENT : requires
+    APPOINTMENT ||--o{ REMINDER : triggers
+    APPOINTMENT ||--o{ NOTIFICATION : generates
+    
+    CLINIC {
+        uuid id PK
+        string name
+        string location
+        jsonb operating_hours
+        jsonb settings
+        timestamp created_at
+    }
+    
+    DOCTOR {
+        uuid id PK
+        uuid clinic_id FK
+        string name
+        string specialization
+        string phone
+        boolean active
+    }
+    
+    PATIENT {
+        uuid id PK
+        string name
+        string phone UK
+        string email
+        int no_show_count
+        timestamp last_visit
+    }
+    
+    APPOINTMENT {
+        uuid id PK
+        uuid clinic_id FK
+        uuid doctor_id FK
+        uuid patient_id FK
+        datetime start_time
+        datetime end_time
+        enum status
+        enum source
+        text notes
+        timestamp created_at
+    }
+    
+    PAYMENT {
+        uuid id PK
+        uuid appointment_id FK
+        decimal amount_advance
+        decimal amount_balance
+        enum payment_method
+        string razorpay_order_id
+        enum status
+        timestamp paid_at
+    }
+    
+    AVAILABILITY {
+        uuid id PK
+        uuid doctor_id FK
+        string day_of_week
+        time start_time
+        time end_time
+        boolean is_available
+    }
+    
+    REMINDER {
+        uuid id PK
+        uuid appointment_id FK
+        enum reminder_type
+        timestamp scheduled_at
+        timestamp sent_at
+        enum delivery_status
+        enum channel
+    }
 ```
-Weekly Report (May 6-12) 📈
-
-Appointments: 78 (↑12% vs last week)
-No-show rate: 9% (↓ from 28% before!)
-Revenue: ₹98,500
-
-Busiest day: Thursday (20 patients)
-Top treatment: Cleanings (32)
-
-[View Details]
-```
-
-**Monthly (1st of month):**
-```
-Monthly Report (April 2026) 🎉
-
-Appointments: 320
-No-show rate: 11% (saved ₹34,000!)
-Revenue: ₹3.8 lakhs
-
-Time saved: 48 hours
-Patient rating: 4.6★ (from 3.9★)
-
-[Full Report PDF]
-```
-
-**Technical:**
-- Analytics dashboard (web, opens in WhatsApp browser)
-- Charts: Line graph (appointments), pie chart (treatments)
-- PDF export
-
----
-
-### 5. Clinic Onboarding
-
-#### 5.1 Setup Flow
-**User Story:** New clinic completes setup in <10 minutes
-
-**WhatsApp-Based Setup:**
-```
-Welcome to DentBook! 👋
-
-Let's set up in 3 minutes:
-
-1️⃣ Clinic name?
-2️⃣ Location (city)?
-3️⃣ Operating hours? (e.g., 5pm-9pm)
-4️⃣ Doctor name(s)?
-5️⃣ Phone for bookings?
-
-[Start Setup]
-```
-
-**After Setup:**
-- WhatsApp bot activated (test booking sent)
-- Staff app invite (download link)
-- 5-min tutorial video (Hindi/English)
-- Optional: 15-min onboarding call
-
-**Success Metric:**
-- 80% complete setup in <10 minutes
-- 90% test-book successfully
-
----
-
-#### 5.2 Configuration Settings
-
-**Configurable via Staff App:**
-
-**Operating Hours:**
-- Days (Mon-Sat, custom)
-- Timings per day
-- Lunch breaks/closures
-
-**Appointments:**
-- Duration (20/30/45 min)
-- Buffer time (5/10 min, none)
-- Advance payment (₹100/200/500, none)
-- Cancellation policy (24hr/12hr/no refund)
-
-**Staff:**
-- Add/remove members
-- Assign permissions
-
-**Doctor Availability:**
-- Individual schedules (multi-doctor)
-- Block dates (holidays, leave)
-
-**Messaging:**
-- Customize WhatsApp greeting
-- Enable/disable AI voice
-- Reminder timing (24hr/2hr/both)
 
 ---
 
@@ -539,7 +654,76 @@ Let's set up in 3 minutes:
 
 ---
 
+## Deployment Architecture
+
+```mermaid
+flowchart TB
+    subgraph Internet["Internet"]
+        Users[Users:<br/>Patients, Staff, Doctors]
+    end
+    
+    subgraph AWS["AWS Mumbai Region"]
+        subgraph VPC["VPC"]
+            subgraph Public["Public Subnet"]
+                ALB[Application<br/>Load Balancer]
+                NAT[NAT Gateway]
+            end
+            
+            subgraph Private["Private Subnet"]
+                ECS[ECS Fargate<br/>Auto-scaling<br/>2-10 tasks]
+                RDS[(RDS PostgreSQL<br/>Multi-AZ<br/>Primary + Standby)]
+                REDIS[(ElastiCache<br/>Redis Cluster)]
+            end
+        end
+        
+        S3[S3 Buckets<br/>Static Assets<br/>Call Recordings]
+        CF[CloudFront CDN]
+    end
+    
+    subgraph External["External Services"]
+        TW[Twilio<br/>WhatsApp + SMS]
+        VP[Vapi.ai<br/>Voice AI]
+        RZ[Razorpay<br/>Payments]
+    end
+    
+    Users --> CF
+    CF --> ALB
+    ALB --> ECS
+    ECS --> RDS
+    ECS --> REDIS
+    ECS --> S3
+    ECS --> NAT
+    NAT --> TW
+    NAT --> VP
+    NAT --> RZ
+    
+    style AWS fill:#fff3e0
+    style VPC fill:#e3f2fd
+    style External fill:#fce4ec
+```
+
+---
+
 ## Testing Requirements
+
+### Test Pyramid
+
+```mermaid
+flowchart TB
+    subgraph Pyramid["Test Pyramid"]
+        E2E[E2E Tests<br/>10%<br/>Critical flows]
+        INT[Integration Tests<br/>30%<br/>API + DB + External services]
+        UNIT[Unit Tests<br/>60%<br/>Business logic]
+    end
+    
+    E2E --> E2EEx[Examples:<br/>- Full booking flow<br/>- Payment + confirmation<br/>- Reminder delivery]
+    INT --> INTEx[Examples:<br/>- WhatsApp API<br/>- Payment webhook<br/>- DB transactions]
+    UNIT --> UNITEx[Examples:<br/>- Slot calculation<br/>- Validation logic<br/>- Date/time utils]
+    
+    style E2E fill:#ffe1e1
+    style INT fill:#fff4e1
+    style UNIT fill:#e1f5e9
+```
 
 ### Unit Tests
 - Backend APIs: 80%+ coverage
@@ -565,6 +749,26 @@ Let's set up in 3 minutes:
 ---
 
 ## Launch Plan
+
+### Phase Timeline
+
+```mermaid
+gantt
+    title Product Launch Timeline
+    dateFormat YYYY-MM-DD
+    section Beta
+    10 Clinics Pilot          :2026-07-01, 60d
+    Daily Feedback            :2026-07-01, 60d
+    section Soft Launch
+    50 Paying Clinics         :2026-09-01, 60d
+    Referral Program          :2026-09-01, 60d
+    section Public Launch
+    100 Paying Clinics        :2026-11-01, 60d
+    PR & Marketing            :2026-11-01, 60d
+    section Post-Launch
+    iOS Development           :2027-01-01, 90d
+    Regional Languages        :2027-01-01, 90d
+```
 
 ### Phase 1: Beta (Month 1-2)
 **Goal:** Validate PMF with 10 clinics
@@ -623,18 +827,46 @@ Let's set up in 3 minutes:
 
 ## Technical Stack
 
+### Technology Decisions
+
+```mermaid
+mindmap
+  root((Tech Stack))
+    Backend
+      Node.js TypeScript
+      Express.js
+      PostgreSQL 14+
+      Redis Cache
+      BullMQ Queue
+    Frontend
+      React Native
+      Redux Toolkit
+      React Native Paper
+      Next.js Dashboard
+    Infrastructure
+      AWS Mumbai
+      ECS Fargate
+      RDS Multi-AZ
+      CloudFront CDN
+    External
+      Twilio WhatsApp
+      Vapi.ai Voice
+      Razorpay Payments
+      MSG91 SMS
+```
+
 ### Backend
 - **Language:** Node.js (TypeScript)
 - **Framework:** Express.js
 - **Database:** PostgreSQL 14+ (AWS RDS)
-- **Caching:** Redis
+- **Caching:** Redis (ElastiCache)
 - **Queue:** BullMQ (async tasks)
 
 ### Frontend
 - **Mobile:** React Native
 - **State:** Redux Toolkit
 - **UI:** React Native Paper
-- **Dashboard:** Next.js + Tailwind
+- **Dashboard:** Next.js + Tailwind CSS
 
 ### Infrastructure
 - **Hosting:** AWS Mumbai (ECS Fargate, RDS Multi-AZ, S3, CloudFront)
@@ -661,53 +893,152 @@ Let's set up in 3 minutes:
 
 ## Risks & Mitigation
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| WhatsApp API policy change | High | SMS fallback, web booking |
-| Low clinic adoption | Critical | 10-min onboarding, clear Week 1 ROI |
-| No-show reduction <20% | High | A/B test reminder timings, phone backup |
-| Staff resistance | High | Optional mode, "assistant" feature first |
-| Competition launches | Medium | Move fast, WhatsApp-first moat, annual lock-in |
+```mermaid
+flowchart LR
+    subgraph Risks["Key Risks"]
+        R1[WhatsApp API<br/>Policy Change]
+        R2[Low Clinic<br/>Adoption]
+        R3[No-show<br/>Reduction < 20%]
+        R4[Staff<br/>Resistance]
+        R5[Competition<br/>Launches]
+    end
+    
+    subgraph Mitigation["Mitigation Strategies"]
+        M1[SMS Fallback<br/>Web Booking]
+        M2[10-min Onboarding<br/>Clear Week 1 ROI]
+        M3[A/B Test Reminders<br/>Phone Backup]
+        M4[Optional Mode<br/>Assistant Feature]
+        M5[Fast Execution<br/>WhatsApp Moat]
+    end
+    
+    R1 -.->|High Impact| M1
+    R2 -.->|Critical Impact| M2
+    R3 -.->|High Impact| M3
+    R4 -.->|High Impact| M4
+    R5 -.->|Medium Impact| M5
+    
+    style Risks fill:#ffe1e1
+    style Mitigation fill:#e1f5e9
+```
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| WhatsApp API policy change | High | Medium | SMS fallback, web booking alternative |
+| Low clinic adoption | Critical | Medium | 10-min onboarding, clear Week 1 ROI demonstration |
+| No-show reduction <20% | High | Low | A/B test reminder timings, add phone call backup |
+| Staff resistance to app | High | Medium | Launch optional mode, "assistant" feature first |
+| Competition launches similar | Medium | Medium | Fast execution, WhatsApp-first moat, annual lock-in |
 
 ---
 
 ## Development Roadmap
 
-**Sprint 1-2 (Weeks 1-4):** Database, backend API, WhatsApp integration, staff app (login + schedule)
+**Sprint 1-2 (Weeks 1-4):** Database schema, backend API scaffolding, WhatsApp integration, staff app (login + schedule view)
 
-**Sprint 3-4 (Weeks 5-8):** Full booking flow, Razorpay, SMS reminders, staff app (walk-in + status)
+**Sprint 3-4 (Weeks 5-8):** Complete booking flow, Razorpay integration, SMS reminders, staff app (walk-in + status management)
 
-**Sprint 5-6 (Weeks 9-12):** AI voice, doctor dashboard, analytics, beta testing
+**Sprint 5-6 (Weeks 9-12):** AI voice calling, doctor dashboard, analytics, beta testing with 10 clinics
 
-**Sprint 7-8 (Weeks 13-16):** Onboarding optimization, performance testing, security audit, app store submission
+**Sprint 7-8 (Weeks 13-16):** Onboarding optimization, performance testing, security audit, Google Play submission
 
-**Post-Launch:** iOS app, regional languages, advanced features
+**Post-Launch:** iOS app development, regional language support, advanced analytics features
 
 ---
 
 ## Definition of Done
 
 **Per Feature:**
-- Code reviewed (2 engineers)
-- Unit tests (80%+ coverage)
-- Integration tests pass
-- Tested on ₹10-15k Android phones
-- Hindi + English verified
-- Documented
-- Staged + PM verified
-- Demo video recorded
+- [ ] Code reviewed by 2 engineers
+- [ ] Unit tests (80%+ coverage)
+- [ ] Integration tests pass
+- [ ] Tested on ₹10-15k Android phones
+- [ ] Hindi + English UI verified
+- [ ] Technical documentation complete
+- [ ] Deployed to staging environment
+- [ ] PM verification completed
+- [ ] Demo video recorded
 
-**MVP Launch:**
-- 10 beta clinics (2 weeks)
-- No P0/P1 bugs
-- <1% payment failure
-- 70%+ booking completion
-- 4.0+ star rating
-- Legal review complete
-- Support playbook ready
-
+**MVP Launch Checklist:**
+- [ ] 10 beta clinics using for 2+ weeks
+- [ ] No P0/P1 bugs remaining
+- [ ] <1% payment failure rate
+- [ ] 70%+ booking completion rate
+- [ ] 4.0+ star rating from beta users
+- [ ] Legal review complete (T&C, Privacy Policy)
+- [ ] Customer support playbook ready
+- [ ] Monitoring and alerting configured
 
 ---
 
-**Last Updated:** May 17, 2026  
-**Version:** 1.0 — Initial PRD approved
+## Appendix
+
+### API Endpoints Summary
+
+```
+Authentication
+POST   /auth/login              - Staff/doctor login
+POST   /auth/otp                - Send OTP to patient
+
+Appointments
+GET    /appointments            - List appointments
+POST   /appointments            - Create appointment
+GET    /appointments/:id        - Get appointment details
+PATCH  /appointments/:id/status - Update status
+DELETE /appointments/:id        - Cancel appointment
+
+Availability
+GET    /availability            - Check available slots
+POST   /availability            - Set doctor availability
+PATCH  /availability/:id        - Update availability
+
+Patients
+GET    /patients                - List patients
+GET    /patients/:id            - Get patient profile
+POST   /patients                - Create patient
+PATCH  /patients/:id            - Update patient
+
+Payments
+POST   /payments                - Record payment
+GET    /payments/:id            - Get payment details
+POST   /payments/:id/refund     - Process refund
+
+Analytics
+GET    /analytics/daily         - Daily summary
+GET    /analytics/weekly        - Weekly report
+GET    /analytics/monthly       - Monthly report
+
+WhatsApp Webhook
+POST   /webhooks/whatsapp       - Incoming messages
+
+Payment Webhook
+POST   /webhooks/razorpay       - Payment notifications
+```
+
+### Glossary
+
+- **No-show:** Patient books but doesn't arrive (no cancellation notice)
+- **Walk-in:** Patient arrives without prior booking
+- **Advance Payment:** Partial payment (₹200-500) to secure appointment slot
+- **Buffer Time:** Gap between appointments for cleaning/preparation (typically 10 min)
+- **Slot:** Fixed time interval for appointments (typically 30 minutes)
+- **UPI:** Unified Payments Interface - India's real-time payment system
+- **WhatsApp Business API:** Official API for automated WhatsApp messaging
+
+---
+
+**Document Status:** ✅ Approved for Development  
+**Sign-Off:**
+- Product Manager: [Your Name]  
+- Engineering Lead: [Pending]  
+- Design Lead: [Pending]  
+
+**Next Steps:**
+1. Engineering feasibility review (Week 1)
+2. Design high-fidelity mockups (Week 1-2)
+3. Sprint 1 planning meeting (Week 2)
+4. Development kickoff (Week 3)
+
+---
+
+**Last Updated:** June 5, 2026  
+**Version:** 1.0 — Initial PRD approved for production
