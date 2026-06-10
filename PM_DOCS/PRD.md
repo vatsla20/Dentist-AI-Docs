@@ -3,9 +3,8 @@
 
 ---
 
-**Product Manager:** [Your Name]  
+
 **Date:** May 17, 2026  
-**Status:** ✅ Approved for Development  
 **Version:** 1.0  
 **Target Launch:** Q3 2026 (Beta: July, Public: September)
 
@@ -69,16 +68,16 @@ Mobile-first, WhatsApp-integrated booking system with:
 
 ## Out of Scope (V1)
 
-❌ Multi-clinic management  
-❌ Electronic medical records (EMR)  
-❌ Lab integrations  
-❌ Inventory management  
-❌ Google Calendar sync  
-❌ Patient portal/login  
-❌ Insurance claim processing  
-❌ Regional languages beyond Hindi  
-❌ Desktop/web version for staff  
-❌ Video consultations
+-Multi-clinic management  
+-Electronic medical records (EMR)  
+-Lab integrations  
+-Inventory management  
+-Google Calendar sync  
+-Patient portal/login  
+-Insurance claim processing  
+-Regional languages beyond Hindi  
+-Desktop/web version for staff  
+-Video consultations
 
 **Rationale:** Focus on 5 core features that solve the critical problem. Additional features based on usage data.
 
